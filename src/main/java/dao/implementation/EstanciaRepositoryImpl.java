@@ -110,31 +110,34 @@ public class EstanciaRepositoryImpl implements IEstanciaRepository {
         return activeStays;
     }
 
-    /**
-     * Actualiza una estancia, típicamente para registrar la salida de un vehículo.
-     * @param estancia El objeto Estancia con los datos a actualizar.
-     */
     @Override
     public void update(Estancia estancia) {
-        // Consulta SQL actualizada para reflejar las nuevas columnas de salida
-        String sql = "UPDATE stays SET exit_timestamp = ?, status = ?, exit_operator_id = ? WHERE stay_id = ?";
+        // --- LA SOLUCIÓN: Añadir el cast '::stay_status_enum' al parámetro del estado ---
+        String sql = "UPDATE stays SET exit_timestamp = ?, status = ?::stay_status_enum, exit_operator_id = ? WHERE stay_id = ?";
+
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
 
-            // Asignar los valores a la consulta preparada
             pstmt.setTimestamp(1, estancia.getExitDate());
+
+            // Aunque el cast está en el SQL, aquí seguimos enviando un String.
+            // PostgreSQL se encargará de la conversión gracias al cast.
             pstmt.setString(2, estancia.getStatus());
-            // Manejar el caso de que el ID del operador de salida sea nulo
-            if (estancia.getExitOperatorId() > 0) {
+
+            // Manejar el caso de que el ID del operador de salida pueda ser nulo
+            if (estancia.getExitOperatorId() != null && estancia.getExitOperatorId() > 0) {
                 pstmt.setInt(3, estancia.getExitOperatorId());
             } else {
-                pstmt.setNull(3, Types.INTEGER);
+                pstmt.setNull(3, java.sql.Types.INTEGER);
             }
+
             pstmt.setInt(4, estancia.getStay_id());
 
             pstmt.executeUpdate();
+
         } catch (SQLException e) {
             e.printStackTrace();
+            // En una aplicación real, sería bueno lanzar una excepción aquí para que la capa de servicio sepa que algo falló.
         }
     }
 }
