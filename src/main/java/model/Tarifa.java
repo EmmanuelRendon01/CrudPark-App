@@ -8,8 +8,16 @@ public class Tarifa {
     private double dailyTop;
     private int gracePeriodMinutes;
     private boolean isActive;
+    private String vehicle_type;
+
 
     // --- Getters and Setters for all fields ---
+    public String getVehicle_type() {
+        return vehicle_type;
+    }
+    public void setVehicle_type(String vehicle_type) {
+        this.vehicle_type = vehicle_type;
+    }
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
     public String getDescription() { return description; }

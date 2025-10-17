@@ -9,7 +9,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 
 
 /**
@@ -38,7 +37,7 @@ public class TicketServiceImpl implements ITicketService {
         // TICKET:{id}|PLATE:{placa}|DATE:{timestamp_seconds}
         long timestamp = estancia.getEntryDate().getTime() / 1000; // Convert ms to seconds
         String qrContent = String.format("TICKET:%d|PLATE:%s|DATE:%d",
-                estancia.getId(), estancia.getPlate(), timestamp);
+                estancia.getStay_id(), estancia.getLicense_plate(), timestamp);
 
         try {
             // 3. Generate the QR code image
@@ -62,8 +61,8 @@ public class TicketServiceImpl implements ITicketService {
         return "==============================\n" +
                 "     CrudPark - Crudzaso\n" +
                 "==============================\n" +
-                "Ticket #: " + String.format("%06d", estancia.getId()) + "\n" +
-                "Placa: " + estancia.getPlate() + "\n" +
+                "Ticket #: " + String.format("%06d", estancia.getStay_id()) + "\n" +
+                "Placa: " + estancia.getLicense_plate() + "\n" +
                 "Tipo: " + estancia.getStayType() + "\n" +
                 "Ingreso: " + sdf.format(estancia.getEntryDate()) + "\n" +
                 "Operador: " + operator.getFullName() + "\n" +

@@ -41,18 +41,18 @@ public class LoginController {
      * and handles the outcome.
      */
     private void performLogin() {
-        String username = view.getUsername();
+        String email = view.getEmail();
         char[] passwordChars = view.getPassword();
         String password = new String(passwordChars);
 
         // Basic input validation.
-        if (username.isEmpty() || password.isEmpty()) {
-            view.displayMessage("El usuario y la contraseña no pueden estar vacíos.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
+        if (email.isEmpty() || password.isEmpty()) {
+            view.displayMessage("El email y la contraseña no pueden estar vacíos.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
         // Call the service layer to perform authentication.
-        Optional<Operator> operatorOptional = authService.login(username, password);
+        Optional<Operator> operatorOptional = authService.login(email, password);
 
         // Handle the result from the service.
         if (operatorOptional.isPresent()) {

@@ -28,7 +28,7 @@ public class EstanciaServiceImpl implements IEstanciaService {
     }
 
     @Override
-    public Estancia registerVehicleEntry(String plate, int operatorId) throws Exception {
+    public Estancia registerVehicleEntry(String plate, String vehicleType, int operatorId) throws Exception {
         // Business Rule 1: A vehicle cannot enter if it's already inside.
         if (estanciaRepository.findActiveByPlate(plate).isPresent()) {
             throw new Exception("El vehículo con placa " + plate + " ya se encuentra dentro del parqueadero.");
@@ -36,14 +36,15 @@ public class EstanciaServiceImpl implements IEstanciaService {
 
         // Business Rule 2: Check for an active monthly plan.
         boolean hasMonthlyPlan = mensualidadRepository.isCurrentlyActive(plate).orElse(false);
-        String stayType = hasMonthlyPlan ? "Mensualidad" : "Invitado";
+        String stayType = hasMonthlyPlan ? "Membership" : "Guest";
 
         // Create the new Estancia record
         Estancia newEstancia = new Estancia();
-        newEstancia.setPlate(plate);
+        newEstancia.setLicense_plate(plate);
         newEstancia.setEntryDate(new Timestamp(System.currentTimeMillis()));
         newEstancia.setStayType(stayType);
-        newEstancia.setStatus("DENTRO");
+        newEstancia.setStatus("INSIDE");
+        newEstancia.setVehicleType(vehicleType);
         newEstancia.setEntryOperatorId(operatorId);
 
         return estanciaRepository.save(newEstancia);
@@ -58,18 +59,34 @@ public class EstanciaServiceImpl implements IEstanciaService {
 
     @Override
     public Estancia calculateExitDetails(String plate) throws Exception {
+        // 1. Obtener la estancia (ahora incluirá el vehicleType gracias al Paso 2)
         Estancia estancia = estanciaRepository.findActiveByPlate(plate)
                 .orElseThrow(() -> new Exception("Vehículo con placa " + plate + " no encontrado o ya ha salido."));
 
-        // If it's a monthly member, no calculation is needed.
-        if ("Mensualidad".equals(estancia.getStayType())) {
-            estancia.setAmountToPay(0.0); // We'll add this transient field to Estancia model
+        // 2. Si es miembro, no se cobra. Esta lógica no cambia.
+        if ("Membership".equals(estancia.getStayType())) {
+            estancia.setAmountToPay(0.0);
             return estancia;
         }
 
-        Tarifa tarifa = tarifaRepository.findActiveTariff()
-                .orElseThrow(() -> new Exception("No hay una tarifa activa configurada en el sistema."));
+        // --- INICIO DE LA REFACTORIZACIÓN ---
 
+        // 3. Obtener el tipo de vehículo desde el objeto estancia.
+        String vehicleType = estancia.getVehicleType();
+        if (vehicleType == null || vehicleType.isEmpty()) {
+            throw new Exception("No se pudo determinar el tipo de vehículo para la placa " + plate + ".");
+        }
+
+        // 4. Buscar la tarifa activa CORRECTA usando el tipo de vehículo.
+        //    Usamos el nuevo método del repositorio de tarifas.
+        Tarifa tarifa = tarifaRepository.findActiveByVehicleType(vehicleType)
+                .orElseThrow(() -> new Exception("No hay una tarifa activa para el tipo de vehículo: " + vehicleType));
+
+        // --- FIN DE LA REFACTORIZACIÓN ---
+
+
+        // 5. El resto de la lógica de cálculo permanece EXACTAMENTE IGUAL,
+        //    porque ahora opera sobre la tarifa correcta (sea de carro o moto).
         long durationMillis = System.currentTimeMillis() - estancia.getEntryDate().getTime();
         long durationMinutes = TimeUnit.MILLISECONDS.toMinutes(durationMillis);
 
@@ -78,16 +95,17 @@ public class EstanciaServiceImpl implements IEstanciaService {
             return estancia;
         }
 
-        // --- Basic Pricing Logic ---
         long hours = TimeUnit.MINUTES.toHours(durationMinutes);
         long remainingMinutes = durationMinutes % 60;
 
         double totalCost = hours * tarifa.getValuePerHour();
         if (remainingMinutes > 0) {
-            totalCost += tarifa.getValuePerFraction(); // Simplified: any fraction costs the fraction value
+            // Lógica mejorada: Redondear hacia arriba para las fracciones.
+            // Si una hora son 4 fracciones de 15min, podemos calcularlo así:
+            long fractions = (long) Math.ceil(remainingMinutes / 15.0); // Asumiendo fracciones de 15 min
+            totalCost += fractions * tarifa.getValuePerFraction();
         }
 
-        // Check against daily top
         if (tarifa.getDailyTop() > 0 && totalCost > tarifa.getDailyTop()) {
             totalCost = tarifa.getDailyTop();
         }
@@ -100,7 +118,7 @@ public class EstanciaServiceImpl implements IEstanciaService {
     public void finalizeExit(Estancia estancia, int operatorId, double amountPaid, String paymentMethod) throws Exception {
         if (amountPaid > 0) {
             Pago pago = new Pago();
-            pago.setEstanciaId(estancia.getId());
+            pago.setEstanciaId(estancia.getStay_id());
             pago.setAmount(amountPaid);
             pago.setPaymentDate(new Timestamp(System.currentTimeMillis()));
             pago.setPaymentMethod(paymentMethod);
@@ -109,7 +127,7 @@ public class EstanciaServiceImpl implements IEstanciaService {
         }
 
         estancia.setExitDate(new Timestamp(System.currentTimeMillis()));
-        estancia.setStatus("FUERA");
+        estancia.setStatus("OUTSIDE");
         estancia.setExitOperatorId(operatorId);
         estanciaRepository.update(estancia);
     }

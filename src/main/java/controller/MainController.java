@@ -64,7 +64,7 @@ public class MainController {
             for (Estancia estancia : activeStays) {
                 String formattedDate = sdf.format(estancia.getEntryDate());
                 view.addVehicleToTable(new Object[]{
-                        estancia.getPlate(),
+                        estancia.getLicense_plate(),
                         estancia.getStayType(),
                         formattedDate
                 });
@@ -80,7 +80,7 @@ public class MainController {
 
     /**
      * Handles the logic for registering a vehicle's entry.
-     * Currently a placeholder.
+     * Refactored to ask for vehicle type.
      */
     private void handleVehicleEntry() {
         String plate = view.getEntryPlate();
@@ -89,17 +89,45 @@ public class MainController {
             return;
         }
 
+        // --- INICIO DE LA REFACTORIZACIÓN ---
+
+        // 1. Crear las opciones y el diálogo para preguntar el tipo de vehículo.
+        String[] vehicleOptions = {"Carro", "Moto"};
+        int choice = JOptionPane.showOptionDialog(
+                view,
+                "Seleccione el tipo de vehículo para la placa: " + plate,
+                "Tipo de Vehículo",
+                JOptionPane.DEFAULT_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                vehicleOptions,
+                vehicleOptions[0]
+        );
+
+        // 2. Si el usuario cierra el diálogo, cancelar la operación.
+        if (choice == JOptionPane.CLOSED_OPTION) {
+            return; // El usuario canceló, no hacer nada.
+        }
+
+        // 3. Obtener el tipo de vehículo seleccionado.
+        String selectedVehicleType = vehicleOptions[choice];
+
+        // --- FIN DE LA REFACTORIZACIÓN ---
+
         try {
-            // Llama al servicio para registrar el ingreso (esto no cambia)
-            Estancia newEstancia = estanciaService.registerVehicleEntry(plate, currentOperator.getId());
+            // 4. Llamar a la NUEVA versión del servicio, pasando el tipo de vehículo.
+            Estancia newEstancia = estanciaService.registerVehicleEntry(plate, selectedVehicleType, currentOperator.getId());
 
             if (newEstancia != null) {
                 // Actualiza la UI (esto no cambia)
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
                 String formattedDate = sdf.format(newEstancia.getEntryDate());
 
+                // NUEVO: Añadir también el tipo de vehículo a la tabla si tienes una columna para ello.
+                // Si no, esta parte puede quedar como estaba.
                 view.addVehicleToTable(new Object[]{
-                        newEstancia.getPlate(),
+                        newEstancia.getLicense_plate(),
+                        // newEstancia.getVehicleType(), // <- Descomenta si tu tabla tiene esta columna
                         newEstancia.getStayType(),
                         formattedDate
                 });

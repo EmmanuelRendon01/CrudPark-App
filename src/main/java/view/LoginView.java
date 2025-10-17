@@ -104,7 +104,7 @@ public class LoginView extends JFrame {
      * This method is called by the controller.
      * @return The username as a String.
      */
-    public String getUsername() {
+    public String getEmail() {
         return userField.getText();
     }
 

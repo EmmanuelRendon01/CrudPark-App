@@ -13,7 +13,7 @@ public interface IEstanciaService {
      * @return The newly created Estancia record.
      * @throws Exception if the vehicle is already inside or another error occurs.
      */
-    Estancia registerVehicleEntry(String plate, int operatorId) throws Exception;
+    public Estancia registerVehicleEntry(String plate, String vehicleType, int operatorId) throws Exception;
 
     /**
      * Retrieves all vehicles currently inside the parking.

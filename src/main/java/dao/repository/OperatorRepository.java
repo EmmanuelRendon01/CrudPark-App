@@ -15,6 +15,8 @@ public interface OperatorRepository {
      */
     Optional<Operator> findByUsername(String username);
 
+    Optional<Operator> findByEmail(String email);
+
     // Other methods like save, update, findById, etc., could be added here later.
 }
 

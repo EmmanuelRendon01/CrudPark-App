@@ -36,14 +36,14 @@ public class AuthServiceImpl implements IAuthService {
      * 2. Checks if the operator exists and is active.
      * 3. Verifies if the provided password matches the stored one.
      *
-     * @param username The operator's username.
+     * @param email The operator's username.
      * @param password The operator's plain text password.
      * @return An Optional<Operator> if authentication is successful.
      */
     @Override
-    public Optional<Operator> login(String username, String password) {
+    public Optional<Operator> login(String email, String password) {
         // Step 1: Use the repository to find the user by username.
-        Optional<Operator> operatorOpt = operatorRepository.findByUsername(username);
+        Optional<Operator> operatorOpt = operatorRepository.findByEmail(email);
 
         // Check if the operator exists.
         if (operatorOpt.isPresent()) {

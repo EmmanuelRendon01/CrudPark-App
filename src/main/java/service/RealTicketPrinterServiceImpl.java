@@ -11,7 +11,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
 import javax.imageio.ImageIO;
 
@@ -35,30 +34,70 @@ public class RealTicketPrinterServiceImpl implements ITicketService {
     @Override
     public void printTicket(Estancia estancia, Operator operator) {
         try {
-            // 1. Create the entire ticket as a single image
+            // 1. Crear la imagen del ticket (esta parte no cambia)
             BufferedImage ticketImage = createTicketImage(estancia, operator);
 
-            // 2. Find the default printer
-            PrintService defaultPrinter = PrintServiceLookup.lookupDefaultPrintService();
-            if (defaultPrinter == null) {
-                JOptionPane.showMessageDialog(null, "No se encontró una impresora predeterminada.", "Error de Impresión", JOptionPane.ERROR_MESSAGE);
+            // --- INICIO DE LA REFACTORIZACIÓN ---
+
+            // 2. Buscar TODAS las impresoras disponibles en el sistema.
+            PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
+
+            // 2.1. Validar si se encontró al menos una impresora.
+            if (printServices.length == 0) {
+                JOptionPane.showMessageDialog(null, "No se encontró ninguna impresora instalada en el sistema.", "Error de Impresión", JOptionPane.ERROR_MESSAGE);
                 return;
             }
 
-            // 3. Create a print job
-            DocPrintJob printJob = defaultPrinter.createPrintJob();
+            // 2.2. Extraer los nombres de las impresoras para mostrarlos en el diálogo.
+            String[] printerNames = new String[printServices.length];
+            for (int i = 0; i < printServices.length; i++) {
+                printerNames[i] = printServices[i].getName();
+            }
 
-            // 4. Convert our BufferedImage to a format the printer can understand
+            // 2.3. Mostrar un diálogo para que el usuario elija una impresora.
+            String selectedPrinterName = (String) JOptionPane.showInputDialog(
+                    null, // Parent component
+                    "Seleccione la impresora para el ticket:", // Message
+                    "Seleccionar Impresora", // Title
+                    JOptionPane.QUESTION_MESSAGE,
+                    null, // Icon
+                    printerNames, // Array of choices
+                    printerNames[0]  // Default choice
+            );
+
+            // 2.4. Si el usuario cancela la selección, terminar el método.
+            if (selectedPrinterName == null) {
+                // El usuario cerró el diálogo o presionó "Cancelar".
+                return;
+            }
+
+            // 2.5. Encontrar el objeto PrintService que corresponde al nombre seleccionado.
+            PrintService selectedPrinter = null;
+            for (PrintService printer : printServices) {
+                if (printer.getName().equals(selectedPrinterName)) {
+                    selectedPrinter = printer;
+                    break;
+                }
+            }
+
+            // --- FIN DE LA REFACTORIZACIÓN ---
+
+            // 3. Crear un trabajo de impresión con la impresora SELECCIONADA.
+            DocPrintJob printJob = selectedPrinter.createPrintJob();
+
+            // 4. Convertir nuestra BufferedImage a un formato que la impresora pueda entender (esta parte no cambia)
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(ticketImage, "png", baos);
             ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
 
-            // Specify the data format (PNG image)
+            // Especificar el formato de los datos (imagen PNG)
             DocFlavor flavor = DocFlavor.INPUT_STREAM.PNG;
             Doc doc = new SimpleDoc(bais, flavor, null);
 
-            // 5. Send the document to the printer
+            // 5. Enviar el documento a la impresora (esta parte no cambia)
             printJob.print(doc, null);
+
+            JOptionPane.showMessageDialog(null, "Ticket enviado a la impresora: " + selectedPrinter.getName(), "Impresión Exitosa", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -77,7 +116,7 @@ public class RealTicketPrinterServiceImpl implements ITicketService {
 
         // --- QR Code Generation ---
         long timestamp = estancia.getEntryDate().getTime() / 1000;
-        String qrContent = String.format("TICKET:%d|PLATE:%s|DATE:%d", estancia.getId(), estancia.getPlate(), timestamp);
+        String qrContent = String.format("TICKET:%d|PLATE:%s|DATE:%d", estancia.getStay_id(), estancia.getLicense_plate(), timestamp);
         BufferedImage qrImage = qrCodeService.generateQRCodeImage(qrContent, 120, 120);
 
         // --- Image Rendering ---
@@ -122,8 +161,8 @@ public class RealTicketPrinterServiceImpl implements ITicketService {
         return "=============================\n" +
                 "     CrudPark - Crudzaso\n" +
                 "=============================\n" +
-                "Ticket #: " + String.format("%06d", estancia.getId()) + "\n" +
-                "Placa: " + estancia.getPlate() + "\n" +
+                "Ticket #: " + String.format("%06d", estancia.getStay_id()) + "\n" +
+                "Placa: " + estancia.getLicense_plate() + "\n" +
                 "Tipo: " + estancia.getStayType() + "\n" +
                 "Ingreso: " + sdf.format(estancia.getEntryDate()) + "\n" +
                 "Operador: " + operator.getFullName() + "\n" +

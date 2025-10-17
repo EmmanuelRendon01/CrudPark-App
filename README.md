@@ -190,7 +190,7 @@ Desde la raíz del proyecto, usa Maven:
 5.  Actualiza la tabla del dashboard inmediatamente.
 
 ### 4. Generación e Impresión de Tickets
-*   Tras un ingreso exitoso, el sistema genera internamente un ticket que incluye un **Código QR** con el formato: `TICKET:{id}|PLATE:{placa}|DATE:{timestamp}`.
+*   Tras un ingreso exitoso, el sistema genera internamente un ticket que incluye un **Código QR** con el formato: `TICKET:{stay_id}|PLATE:{placa}|DATE:{timestamp}`.
 *   La aplicación pregunta al operador qué hacer:
     *   **Ver Simulación:** Muestra una ventana emergente con el texto del ticket y la imagen del QR generado.
     *   **Imprimir Ticket:** Envía el ticket formateado directamente a la impresora predeterminada del sistema operativo.
