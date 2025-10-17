@@ -5,19 +5,16 @@ import dao.repository.ITicketService;
 import model.Estancia;
 import model.Operator;
 
-import javax.imageio.ImageIO;
-import javax.print.*;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+import java.awt.print.*;
 import java.text.SimpleDateFormat;
 
 /**
- * Service implementation for printing tickets.
- * This version uses image rasterization to ensure maximum compatibility
- * with all types of printers, avoiding PostScript conversion issues.
+ * Implementación final del servicio de impresión.
+ * Utiliza PrinterJob para un control total y "quema" (fija) las dimensiones del papel
+ * para asegurar la máxima compatibilidad con impresoras térmicas de 58mm.
  */
 public class RealTicketPrinterServiceImpl implements ITicketService {
 
@@ -29,125 +26,99 @@ public class RealTicketPrinterServiceImpl implements ITicketService {
 
     @Override
     public void printTicket(Estancia estancia, Operator operator) {
-        // --- SECCIÓN DE SELECCIÓN DE IMPRESORA (Funciona bien, no cambia) ---
-        PrintService selectedPrinter = selectPrinter();
-        if (selectedPrinter == null) {
-            return; // El usuario canceló o no hay impresoras
-        }
-        // --- FIN DE SELECCIÓN ---
+        // 1. Obtenemos el PrinterJob, que nos da control total sobre la impresión.
+        PrinterJob printerJob = PrinterJob.getPrinterJob();
 
-        try {
-            // 1. Renderizar el ticket completo como una imagen en memoria.
-            //    Esto nos da control total y evita que el driver genere PostScript.
-            BufferedImage ticketImage = createTicketImage(estancia, operator);
+        // 2. Creamos un formato de página personalizado.
+        PageFormat pageFormat = printerJob.defaultPage();
+        Paper paper = pageFormat.getPaper();
 
-            // 2. Crear un trabajo de impresión con la impresora seleccionada.
-            DocPrintJob printJob = selectedPrinter.createPrintJob();
+        // --- LA PARTE CLAVE: "QUEMAMOS" LAS DIMENSIONES DEL PAPEL ---
+        // Fijamos los valores en "puntos" (1 pulgada = 72 puntos) para un rollo de 58mm.
+        // Esto ignora cualquier configuración incorrecta del driver de la impresora.
+        double width = 165;  // Ancho de 58mm en puntos.
+        double height = 842; // Una altura grande, segura para papel de rollo.
+        paper.setSize(width, height);
 
-            // 3. Convertir nuestra BufferedImage a un flujo de bytes en un formato estándar (PNG).
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(ticketImage, "png", baos);
-            ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        // Fijamos los márgenes. 5 puntos es un margen pequeño y seguro.
+        double margin = 5;
+        paper.setImageableArea(margin, margin, width - (margin * 2), height - (margin * 2));
 
-            // 4. CLAVE: Especificar que estamos enviando una imagen PNG.
-            //    Este DocFlavor es el correcto para enviar una imagen rasterizada.
-            //    No le da al driver la oportunidad de interpretar mal los comandos de dibujo.
-            DocFlavor flavor = DocFlavor.INPUT_STREAM.PNG;
-            Doc doc = new SimpleDoc(bais, flavor, null);
+        pageFormat.setPaper(paper);
+        // --- FIN DE LA CONFIGURACIÓN DEL PAPEL ---
 
-            // 5. Enviar la imagen directamente a la impresora.
-            printJob.print(doc, null);
+        // 3. Asignamos nuestro objeto "dibujable" (Printable) que contiene el diseño del ticket.
+        Printable ticketContent = new TicketPrintable(estancia, operator);
+        printerJob.setPrintable(ticketContent, pageFormat);
 
-            JOptionPane.showMessageDialog(null, "Ticket enviado a la impresora: " + selectedPrinter.getName(), "Impresión Exitosa", JOptionPane.INFORMATION_MESSAGE);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(null, "Ocurrió un error al intentar imprimir el ticket: " + e.getMessage(), "Error de Impresión", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    /**
-     * Helper method to handle printer selection UI.
-     * @return The selected PrintService, or null if canceled.
-     */
-    private PrintService selectPrinter() {
-        PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
-        if (printServices.length == 0) {
-            JOptionPane.showMessageDialog(null, "No se encontró ninguna impresora instalada.", "Error", JOptionPane.ERROR_MESSAGE);
-            return null;
-        }
-
-        String[] printerNames = new String[printServices.length];
-        for (int i = 0; i < printServices.length; i++) {
-            printerNames[i] = printServices[i].getName();
-        }
-
-        String selectedPrinterName = (String) JOptionPane.showInputDialog(null, "Seleccione una impresora:",
-                "Imprimir Ticket", JOptionPane.QUESTION_MESSAGE, null, printerNames, printerNames[0]);
-
-        if (selectedPrinterName == null) {
-            return null; // Usuario canceló
-        }
-
-        for (PrintService printer : printServices) {
-            if (printer.getName().equals(selectedPrinterName)) {
-                return printer;
+        // 4. Mostramos el diálogo de impresión estándar del sistema operativo.
+        //    Este diálogo permite al usuario seleccionar la impresora.
+        //    Si el usuario presiona "Imprimir", el método devuelve 'true'.
+        if (printerJob.printDialog()) {
+            try {
+                // 5. Ejecutamos la impresión.
+                printerJob.print();
+                JOptionPane.showMessageDialog(null, "Ticket enviado a la impresora.", "Impresión Exitosa", JOptionPane.INFORMATION_MESSAGE);
+            } catch (PrinterException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Ocurrió un error al imprimir el ticket: " + ex.getMessage(), "Error de Impresión", JOptionPane.ERROR_MESSAGE);
             }
         }
-        return null;
     }
 
     /**
-     * Renders the complete ticket (text and QR code) into a single BufferedImage.
-     * This is the core of our rasterization strategy.
+     * Clase interna que dibuja el contenido del ticket.
+     * Su lógica no necesita cambiar, ya que se adapta al PageFormat que le pasemos.
      */
-    private BufferedImage createTicketImage(Estancia estancia, Operator operator) throws Exception {
-        String ticketText = buildTicketText(estancia, operator);
-        String[] lines = ticketText.split("\n");
+    private class TicketPrintable implements Printable {
+        private final Estancia estancia;
+        private final Operator operator;
 
-        long timestamp = estancia.getEntryDate().getTime() / 1000;
-        String qrContent = String.format("TICKET:%d|PLATE:%s|DATE:%d", estancia.getStay_id(), estancia.getLicense_plate(), timestamp);
-        BufferedImage qrImage = qrCodeService.generateQRCodeImage(qrContent, 120, 120);
-
-        // Dimensiones para impresora térmica (aprox 58mm). Ajusta si es necesario.
-        int ticketWidth = 220;
-        int lineHeight = 14;
-        int topMargin = 10;
-        int leftMargin = 10;
-        int spacingAfterText = 5;
-        int ticketHeight = (lines.length * lineHeight) + qrImage.getHeight() + topMargin * 2 + spacingAfterText;
-
-        // Usamos TYPE_BYTE_GRAY para una imagen en blanco y negro, más eficiente para impresoras térmicas.
-        BufferedImage image = new BufferedImage(ticketWidth, ticketHeight, BufferedImage.TYPE_BYTE_GRAY);
-        Graphics2D g2d = image.createGraphics();
-
-        // Fondo blanco
-        g2d.setColor(Color.WHITE);
-        g2d.fillRect(0, 0, ticketWidth, ticketHeight);
-
-        // Texto negro
-        g2d.setColor(Color.BLACK);
-        g2d.setFont(new Font("Monospaced", Font.PLAIN, 10));
-
-        // Dibujar texto
-        int y = topMargin + lineHeight;
-        for (String line : lines) {
-            g2d.drawString(line, leftMargin, y);
-            y += lineHeight;
+        public TicketPrintable(Estancia estancia, Operator operator) {
+            this.estancia = estancia;
+            this.operator = operator;
         }
 
-        y += spacingAfterText;
+        @Override
+        public int print(Graphics graphics, PageFormat pageFormat, int pageIndex) throws PrinterException {
+            if (pageIndex > 0) return NO_SUCH_PAGE;
 
-        // Dibujar QR centrado
-        int qrX = (ticketWidth - qrImage.getWidth()) / 2;
-        g2d.drawImage(qrImage, qrX, y, null);
+            Graphics2D g2d = (Graphics2D) graphics;
+            g2d.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+            int availableWidth = (int) pageFormat.getImageableWidth();
 
-        g2d.dispose();
-        return image;
+            try {
+                String ticketText = buildTicketText(estancia, operator);
+                String[] lines = ticketText.split("\n");
+
+                long timestamp = estancia.getEntryDate().getTime() / 1000;
+                String qrContent = String.format("TICKET:%d|PLATE:%s|DATE:%d", estancia.getStay_id(), estancia.getLicense_plate(), timestamp);
+                BufferedImage qrImage = qrCodeService.generateQRCodeImage(qrContent, 100, 100);
+
+                g2d.setColor(Color.BLACK);
+                g2d.setFont(new Font("Monospaced", Font.PLAIN, 9));
+
+                int lineHeight = 12;
+                int y = lineHeight;
+                for (String line : lines) {
+                    g2d.drawString(line, 0, y);
+                    y += lineHeight;
+                }
+                y += 5;
+
+                int qrX = (availableWidth - qrImage.getWidth()) / 2;
+                g2d.drawImage(qrImage, qrX, y, null);
+
+            } catch (Exception e) {
+                throw new PrinterException("Error al generar contenido del ticket: " + e.getMessage());
+            }
+
+            return PAGE_EXISTS;
+        }
     }
 
     /**
-     * Helper method to build the text part of the ticket.
+     * Helper que construye el texto del ticket. Sin cambios.
      */
     private String buildTicketText(Estancia estancia, Operator operator) {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
