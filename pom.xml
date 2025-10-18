@@ -56,7 +56,6 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- También es importante usar la ruta completa a tu clase Main -->
                     <mainClass>Main</mainClass>
                     <classpathScope>compile</classpathScope>
                 </configuration>
