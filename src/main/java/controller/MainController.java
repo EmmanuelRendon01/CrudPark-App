@@ -80,18 +80,46 @@ public class MainController {
 
     /**
      * Handles the logic for registering a vehicle's entry.
-     * Refactored to ask for vehicle type.
+     * Includes license plate format validation and prompts for the vehicle type.
      */
     private void handleVehicleEntry() {
-        String plate = view.getEntryPlate();
+        // Convert to uppercase for consistency and easier validation.
+        String plate = view.getEntryPlate().toUpperCase();
+
+        // 1. Initial validations for the license plate.
         if (plate.isEmpty()) {
             JOptionPane.showMessageDialog(view, "Por favor, ingrese una placa.", "Error de Validación", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
-        // --- INICIO DE LA REFACTORIZACIÓN ---
+        // --- LICENSE PLATE FORMAT VALIDATION ---
+        // Rule 1: Minimum length of 6 characters.
+        if (plate.length() < 6) {
+            JOptionPane.showMessageDialog(view, "La placa debe tener al menos 6 caracteres.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
-        // 1. Crear las opciones y el diálogo para preguntar el tipo de vehículo.
+        // Rule 2: Count letters and check for invalid characters.
+        int letterCount = 0;
+        for (char c : plate.toCharArray()) {
+            // Ensure the plate contains only letters and digits.
+            if (!Character.isLetterOrDigit(c)) {
+                JOptionPane.showMessageDialog(view, "La placa solo puede contener letras y números (sin espacios ni guiones).", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            if (Character.isLetter(c)) {
+                letterCount++;
+            }
+        }
+
+        // Rule 3: Maximum of four letters.
+        if (letterCount > 4) {
+            JOptionPane.showMessageDialog(view, "La placa no puede contener más de 4 letras.", "Error de Formato", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // --- END OF VALIDATION ---
+
+        // 2. Prompt the operator to select the vehicle type.
         String[] vehicleOptions = {"Carro", "Moto"};
         int choice = JOptionPane.showOptionDialog(
                 view,
@@ -104,42 +132,41 @@ public class MainController {
                 vehicleOptions[0]
         );
 
-        // 2. Si el usuario cierra el diálogo, cancelar la operación.
+        // If the user closes the dialog, cancel the operation.
         if (choice == JOptionPane.CLOSED_OPTION) {
-            return; // El usuario canceló, no hacer nada.
+            return;
         }
 
-        // 3. Obtener el tipo de vehículo seleccionado.
         String selectedVehicleType = vehicleOptions[choice];
 
-        // --- FIN DE LA REFACTORIZACIÓN ---
-
+        // 3. Register the entry in the database via the service layer.
         try {
-            // 4. Llamar a la NUEVA versión del servicio, pasando el tipo de vehículo.
-            Estancia newEstancia = estanciaService.registerVehicleEntry(plate, selectedVehicleType, currentOperator.getId());
+            // The service layer contains the business logic for creating a new Estancia.
+            Estancia newStay = estanciaService.registerVehicleEntry(plate, selectedVehicleType, currentOperator.getId());
 
-            if (newEstancia != null) {
-                // Actualiza la UI (esto no cambia)
+            if (newStay != null) {
+                // 4. Update the UI if the registration was successful.
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                String formattedDate = sdf.format(newEstancia.getEntryDate());
+                String formattedDate = sdf.format(newStay.getEntryDate());
 
-                // NUEVO: Añadir también el tipo de vehículo a la tabla si tienes una columna para ello.
-                // Si no, esta parte puede quedar como estaba.
+                // Add the new row to the table of vehicles currently in the parking lot.
+                // NOTE: Ensure your view's table has the corresponding columns.
                 view.addVehicleToTable(new Object[]{
-                        newEstancia.getLicense_plate(),
-                        // newEstancia.getVehicleType(), // <- Descomenta si tu tabla tiene esta columna
-                        newEstancia.getStayType(),
+                        newStay.getLicense_plate(),
+                        // newStay.getVehicleType(), // <- Uncomment if your table displays the type.
+                        newStay.getStayType(),
                         formattedDate
                 });
 
                 JOptionPane.showMessageDialog(view, "Ingreso registrado exitosamente para la placa: " + plate, "Ingreso Exitoso", JOptionPane.INFORMATION_MESSAGE);
                 view.clearEntryPlateField();
 
-                // --- LÓGICA DE ELECCIÓN DE IMPRESIÓN ---
-                askForPrintingChoice(newEstancia);
+                // 5. Ask the operator if they wish to print the entry ticket.
+                askForPrintingChoice(newStay);
             }
 
         } catch (Exception e) {
+            // In case of an unexpected error (e.g., DB connection failure), display the message.
             JOptionPane.showMessageDialog(view, e.getMessage(), "Error al Registrar Ingreso", JOptionPane.ERROR_MESSAGE);
         }
     }

@@ -16,6 +16,14 @@ public class Main {
     public static void main(String[] args) {
         // It's a best practice to initialize Swing components on the Event Dispatch Thread (EDT).
         // SwingUtilities.invokeLater ensures that our GUI code runs safely.
+
+        try {
+            UIManager.setLookAndFeel(new FlatLightLaf());
+        } catch (Exception ex) {
+            System.err.println("Failed to initialize LaF");
+        }
+
+
         SwingUtilities.invokeLater(() -> {
             // 1. Create an instance of the view.
             LoginView loginView = new LoginView();
