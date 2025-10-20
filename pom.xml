@@ -36,21 +36,45 @@
 
     <build>
         <plugins>
+            <!-- =================================================================== -->
+            <!-- PLUGIN PARA EJECUTAR EN DESARROLLO           -->
+            <!-- Comando: mvn exec:java                                            -->
+            <!-- =================================================================== -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.0</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>java</goal>
-                        </goals>
-                    </execution>
-                </executions>
                 <configuration>
                     <mainClass>Main</mainClass>
-                    <classpathScope>compile</classpathScope>
                 </configuration>
+            </plugin>
+
+            <!-- =================================================================== -->
+            <!-- PLUGIN PARA CREAR EL JAR EJECUTABLE          -->
+            <!-- Comando: mvn clean package                                        -->
+            <!-- =================================================================== -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>Main</mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>
