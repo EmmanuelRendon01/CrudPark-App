@@ -40,6 +40,7 @@ public class LoginView extends JFrame {
         // --- Title Label ---
         JLabel titleLabel = new JLabel("Acceso Operador");
         titleLabel.setFont(new Font("Segoe UI", Font.BOLD, 24));
+        titleLabel.setForeground(Color.WHITE); //
         titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
         gbc.gridx = 0;
         gbc.gridy = 0;
@@ -51,6 +52,7 @@ public class LoginView extends JFrame {
         // --- Username Label and Field ---
         JLabel userLabel = new JLabel("Usuario:");
         userLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        userLabel.setForeground(Color.WHITE); //
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 1;
@@ -68,6 +70,7 @@ public class LoginView extends JFrame {
         // --- Password Label and Field ---
         JLabel passwordLabel = new JLabel("Contraseña:");
         passwordLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        passwordLabel.setForeground(Color.WHITE); //
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.anchor = GridBagConstraints.LINE_END;
@@ -83,8 +86,12 @@ public class LoginView extends JFrame {
         // --- Login Button ---
         loginButton = new JButton("Ingresar");
         loginButton.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        loginButton.setBackground(new Color(0, 123, 255)); // A nice blue color
-        loginButton.setForeground(Color.WHITE);
+
+// --- SOLUCIÓN APLICADA AQUÍ ---
+        loginButton.setOpaque(true); // Permite que setBackground funcione correctamente en Windows.
+        loginButton.setBorderPainted(false); // (Opcional) Quita el borde por defecto que puede verse mal con un color sólido.
+        loginButton.setBackground(new Color(50, 50, 50)); // Fondo negro
+        loginButton.setForeground(Color.WHITE); // Texto blanco
         loginButton.setFocusPainted(false);
         loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         gbc.gridx = 0;
