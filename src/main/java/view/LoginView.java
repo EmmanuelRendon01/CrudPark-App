@@ -34,7 +34,7 @@ public class LoginView extends JFrame {
         // --- Create the main panel with GridBagLayout for precise control ---
         JPanel mainPanel = new JPanel(new GridBagLayout());
         mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20)); // Add padding
-        mainPanel.setBackground(new Color(245, 245, 245)); // A light gray background
+        mainPanel.setBackground(new Color(80, 80, 80)); //Gray
         GridBagConstraints gbc = new GridBagConstraints();
 
         // --- Title Label ---
